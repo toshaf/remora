@@ -1,12 +1,12 @@
 package server
 
 import (
+	"fmt"
 	"github.com/toshaf/remora"
 	"github.com/toshaf/remora/comms"
 	"github.com/toshaf/remora/comms/binary"
 	"io"
 	"os"
-	"os/exec"
 	"path"
 )
 
@@ -69,33 +69,40 @@ func New(args Args) Server {
 }
 
 func (s *server) Start() (Run, error) {
-	app := exec.Command(s.target, "-remora.pipes="+s.pipes)
-	stdout, err := app.StdoutPipe()
+	attr := &os.ProcAttr{
+		Dir:   path.Dir(s.target),                         // start the process in the binary's directory
+		Env:   nil,                                        // use the environment
+		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr}, // pass the output through
+		Sys:   nil,                                        // no special requirements yet
+	}
+	args := []string{
+		"--remora.pipes=" + s.pipes,
+	}
+	app, err := os.StartProcess(s.target, args, attr)
 	if err != nil {
 		return nil, err
 	}
-	stderr, err := app.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
-	err = app.Start()
-	if err != nil {
-		return nil, err
-	}
-
-	owait := copy(os.Stdout, stdout)
-	ewait := copy(os.Stderr, stderr)
 
 	result := make(chan error)
 
 	go func() {
-		<-owait
-		<-ewait
-
-		err := app.Wait()
+		state, err := app.Wait()
 
 		if err != nil {
-			result <- err
+			fmt.Fprintf(os.Stderr, "Can't wait on process: %s\n", err)
+			err = app.Kill()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Can't kill process: %s\n", err)
+			}
+			err = app.Release()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Can't release process: %s\n", err)
+			}
+			panic(fmt.Errorf("Lost control of process"))
+		}
+
+		if !state.Success() {
+			result <- fmt.Errorf(state.String())
 		}
 		close(result)
 	}()

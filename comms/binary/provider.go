@@ -41,7 +41,7 @@ func (p *provider) Server(name string) (comms.Pipe, error) {
 		return nil, err
 	}
 
-	return NewServer(FNames{In:iname, Out:oname}), nil
+	return NewServer(FNames{In: iname, Out: oname}), nil
 }
 
 // Connects to the pipes created by the server.
@@ -60,7 +60,7 @@ func (p *provider) Client(name string) (comms.Pipe, error) {
 		return nil, err
 	}
 
-	return NewClient(FNames{In:iname, Out:oname}), nil
+	return NewClient(FNames{In: iname, Out: oname}), nil
 }
 
 func createFifo(fname string) error {

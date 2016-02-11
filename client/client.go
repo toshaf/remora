@@ -1,25 +1,31 @@
 package client
 
 import (
-	"flag"
 	"github.com/toshaf/remora"
 	"github.com/toshaf/remora/comms"
 	"github.com/toshaf/remora/comms/binary"
+	"os"
+	"strings"
 )
 
-var pipes *string
+var pipes string
 
 func init() {
-	pipes = flag.String("remora.pipes", ".", "The directory in which the host will set up named pipes")
-
-	flag.Parse()
+	args := []string{}
+	for _, a := range os.Args {
+		if strings.HasPrefix(a, "--remora.pipes=") {
+			pipes = strings.Split(a, "=")[1]
+		} else {
+			args = append(args, a)
+		}
+	}
 }
 
 // Creates a new Client instance using the directory specified by the server
 // process that started this process.
 func New() remora.Client {
 	return &client{
-		Provider: binary.NewProvider(*pipes),
+		Provider: binary.NewProvider(pipes),
 	}
 }
 
