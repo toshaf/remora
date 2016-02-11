@@ -5,7 +5,6 @@ import (
 	"github.com/toshaf/remora"
 	"github.com/toshaf/remora/comms"
 	"github.com/toshaf/remora/comms/binary"
-	"io"
 	"os"
 	"path"
 )
@@ -117,34 +116,4 @@ func (s *server) Close() error {
 	errs.Add(os.Remove(s.pipes))
 
 	return errs.Result()
-}
-
-func copy(w io.Writer, r io.Reader) <-chan struct{} {
-	wait := make(chan struct{})
-	go func() {
-		defer close(wait)
-		buffer := make([]byte, 1024)
-		for {
-			nr, err := r.Read(buffer)
-			if nr == 0 {
-				return
-			}
-			nw := 0
-			for nw < nr {
-				i, err := w.Write(buffer[nw:nr])
-				if err != nil {
-					panic(err)
-				}
-				nw += i
-			}
-			if err == io.EOF {
-				return
-			}
-			if err != nil {
-				panic(err)
-			}
-		}
-	}()
-
-	return wait
 }
