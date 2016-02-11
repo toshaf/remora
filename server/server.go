@@ -15,14 +15,20 @@ type Args struct {
 
 type Run interface {
 	Result() <-chan error
+	Kill() error
 }
 
 type run struct {
 	result chan error
+	proc *os.Process
 }
 
 func (r run) Result() <-chan error {
 	return r.result
+}
+
+func (r run) Kill() error {
+	return r.proc.Kill()
 }
 
 type Server interface {
@@ -77,7 +83,7 @@ func (s *server) Start() (Run, error) {
 	args := []string{
 		"--remora.pipes=" + s.pipes,
 	}
-	app, err := os.StartProcess(s.target, args, attr)
+	proc, err := os.StartProcess(s.target, args, attr)
 	if err != nil {
 		return nil, err
 	}
@@ -85,15 +91,15 @@ func (s *server) Start() (Run, error) {
 	result := make(chan error)
 
 	go func() {
-		state, err := app.Wait()
+		state, err := proc.Wait()
 
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Can't wait on process: %s\n", err)
-			err = app.Kill()
+			err = proc.Kill()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Can't kill process: %s\n", err)
 			}
-			err = app.Release()
+			err = proc.Release()
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "Can't release process: %s\n", err)
 			}
@@ -108,12 +114,15 @@ func (s *server) Start() (Run, error) {
 
 	return run{
 		result: result,
+		proc: proc,
 	}, nil
 }
 
 func (s *server) Close() error {
 	errs := s.closers.CloseAll()
-	errs.Add(os.Remove(s.pipes))
+	if err := os.Remove(s.pipes); !os.IsNotExist(err) {
+		errs.Add(err)
+	}
 
 	return errs.Result()
 }

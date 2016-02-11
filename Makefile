@@ -27,5 +27,8 @@ run: race
 runabs: main
 	@./bin/server `pwd`/bin/client
 
+runkill: race
+	@./bin/kserver bin/badclient
+
 clean:
 	@-rm -rf bin
