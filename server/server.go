@@ -20,7 +20,7 @@ type Run interface {
 
 type run struct {
 	result chan error
-	proc *os.Process
+	proc   *os.Process
 }
 
 func (r run) Result() <-chan error {
@@ -33,7 +33,7 @@ func (r run) Kill() error {
 
 type Server interface {
 	Open(string) (comms.Pipe, error)
-	Start() (Run, error)
+	Start(args ...string) (Run, error)
 	Close() error
 }
 
@@ -73,16 +73,14 @@ func New(args Args) Server {
 	}
 }
 
-func (s *server) Start() (Run, error) {
+func (s *server) Start(args ...string) (Run, error) {
 	attr := &os.ProcAttr{
 		Dir:   path.Dir(s.target),                         // start the process in the binary's directory
 		Env:   nil,                                        // use the environment
 		Files: []*os.File{os.Stdin, os.Stdout, os.Stderr}, // pass the output through
 		Sys:   nil,                                        // no special requirements yet
 	}
-	args := []string{
-		"--remora.pipes=" + s.pipes,
-	}
+	args = append(args, "--remora.pipes="+s.pipes)
 	proc, err := os.StartProcess(s.target, args, attr)
 	if err != nil {
 		return nil, err
@@ -114,7 +112,7 @@ func (s *server) Start() (Run, error) {
 
 	return run{
 		result: result,
-		proc: proc,
+		proc:   proc,
 	}, nil
 }
 

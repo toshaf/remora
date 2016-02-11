@@ -8,15 +8,15 @@ import (
 )
 
 func main() {
-	srv := server.New(server.Args{Target:os.Args[1]})
-	defer func(){
+	srv := server.New(server.Args{Target: os.Args[1]})
+	defer func() {
 		Check(srv.Close())
 	}()
 
-	run, err := srv.Start()
+	run, err := srv.Start("one", "two", "three")
 	Check(err)
 
-	select{
+	select {
 	case err := <-run.Result():
 		Check(err)
 	case <-time.After(time.Second):
