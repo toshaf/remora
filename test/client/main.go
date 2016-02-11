@@ -8,21 +8,27 @@ import (
 )
 
 func main() {
-	fmt.Fprintf(os.Stderr, "client\n")
-
+	fmt.Fprintf(os.Stderr, "creating client...")
 	rc := client.New()
+	fmt.Fprintf(os.Stderr, "done\n")
 	defer func() {
 		Check(rc.Close())
 	}()
 
-	in, out, err := rc.Connect("maths")
+	fmt.Fprintf(os.Stderr, "connecting to maths ...")
+	maths, err := rc.Connect("maths")
 	Check(err)
+	fmt.Fprintf(os.Stderr, "done\n")
 
-	err = out.Send(test.Q{A: 5, B: 4, Op: "+"})
+	fmt.Fprintf(os.Stderr, "sending maths question...")
+	err = maths.Send(test.Q{A: 5, B: 4, Op: "+"})
 	Check(err)
+	fmt.Fprintf(os.Stderr, "done\n")
 
+	fmt.Fprintf(os.Stderr, "receiving answer...")
 	var a test.A
-	Check(in.Recv(&a))
+	Check(maths.Recv(&a))
+	fmt.Fprintf(os.Stderr, "done\n")
 
 	fmt.Printf("Answer: %d\n", a.V)
 	fmt.Fprintf(os.Stderr, "client finished\n")

@@ -19,67 +19,51 @@ func NewProvider(dir string) comms.Provider {
 	}
 }
 
-// Creates the pipes and starts the server connections.
-// Whether you get full or half duplex depends of the value of dir
-func (p *provider) Server(name string, dir comms.Dir) (comms.In, comms.Out, error) {
+// Creates the pipe and starts the server connections.
+func (p *provider) Server(name string) (comms.Pipe, error) {
 	err := os.MkdirAll(p.dir, 0777)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	base := path.Join(p.dir, name)
 
-	var in comms.In
-	if dir&comms.Input == comms.Input {
-		// the file names are from the client's POV
-		fname := base + ".out"
-		os.Remove(fname)
-		err = syscall.Mkfifo(fname, 0666)
-		if err != nil {
-			return nil, nil, err
-		}
-
-		in = NewServerIn(fname)
+	// the file names are from the client's POV
+	iname := base + ".out"
+	err = createFifo(iname)
+	if err != nil {
+		return nil, err
 	}
 
-	var out comms.Out
-	if dir&comms.Output == comms.Output {
-		// the file names are from the client's POV
-		fname := base + ".in"
-		os.Remove(fname)
-		err = syscall.Mkfifo(fname, 0644)
-		if err != nil {
-			if in != nil {
-				in.Close()
-			}
-			return nil, nil, err
-		}
-		out = NewServerOut(fname)
+	oname := base + ".in"
+	err = createFifo(oname)
+	if err != nil {
+		return nil, err
 	}
 
-	return in, out, nil
+	return NewServer(FNames{In:iname, Out:oname}), nil
 }
 
 // Connects to the pipes created by the server.
-// Whether you get full or half duplex depends of the value of dir
-func (p *provider) Client(name string, dir comms.Dir) (comms.In, comms.Out, error) {
+func (p *provider) Client(name string) (comms.Pipe, error) {
 	base := path.Join(p.dir, name)
 
-	var in comms.In
-	if dir&comms.Input == comms.Input {
-		// the file names are from the client's POV
-		fname := base + ".in"
-
-		in = NewClientIn(fname)
+	// the file names are from the client's POV
+	iname := base + ".in"
+	_, err := os.Stat(iname)
+	if err != nil {
+		return nil, err
+	}
+	oname := base + ".out"
+	_, err = os.Stat(oname)
+	if err != nil {
+		return nil, err
 	}
 
-	var out comms.Out
-	if dir&comms.Output == comms.Output {
-		// the file names are from the client's POV
-		fname := base + ".out"
+	return NewClient(FNames{In:iname, Out:oname}), nil
+}
 
-		out = NewClientOut(fname)
-	}
-
-	return in, out, nil
+func createFifo(fname string) error {
+	os.Remove(fname)
+	return syscall.Mkfifo(fname, 0666)
 }

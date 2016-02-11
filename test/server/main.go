@@ -34,18 +34,18 @@ func main() {
 }
 
 func maths(srv server.Server) {
-	in, out, err := srv.Open("maths")
+	maths, err := srv.Open("maths")
 	Check(err)
 
 	go func() {
 		for {
 			q := test.Q{}
-			err := in.Recv(&q)
+			err := maths.Recv(&q)
 			if err == io.EOF {
 				return
 			}
 			Check(err)
-			Check(out.Send(runQ(q)))
+			Check(maths.Send(runQ(q)))
 		}
 	}()
 }

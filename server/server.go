@@ -27,7 +27,7 @@ func (r run) Result() <-chan error {
 }
 
 type Server interface {
-	Open(string) (comms.In, comms.Out, error)
+	Open(string) (comms.Pipe, error)
 	Start() (Run, error)
 	Close() error
 }
@@ -39,14 +39,14 @@ type server struct {
 	closers  remora.Closers
 }
 
-func (s *server) Open(pipe string) (comms.In, comms.Out, error) {
-	in, out, err := s.provider.Server(pipe, comms.Duplex)
+func (s *server) Open(name string) (comms.Pipe, error) {
+	pipe, err := s.provider.Server(name)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	s.closers.Append(in, out)
+	s.closers.Append(pipe)
 
-	return in, out, err
+	return pipe, err
 }
 
 func New(args Args) Server {

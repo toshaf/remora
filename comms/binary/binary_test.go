@@ -2,7 +2,6 @@ package binary_test
 
 import (
 	"fmt"
-	"github.com/toshaf/remora/comms"
 	"github.com/toshaf/remora/comms/binary"
 	"io/ioutil"
 	"os"
@@ -18,56 +17,48 @@ type Res struct {
 	Id, To int
 }
 
-func Test_Duplex(t *testing.T) {
+func Test_Connection(t *testing.T) {
 	dir := path.Join(os.TempDir(), "remora-test")
 
 	p := binary.NewProvider(dir)
 
-	sin, sout, err := p.Server("test", comms.Duplex)
+	server, err := p.Server("test")
 	if err != nil {
 		t.Error(err)
 	}
-	if sin == nil {
-		t.Error("sin nil")
+	if server == nil {
+		t.Error("server nil")
 	}
-	if sout == nil {
-		t.Error("sout nil")
-	}
-	defer sin.Close()
-	defer sout.Close()
 
-	cin, cout, err := p.Client("test", comms.Duplex)
+	client, err := p.Client("test")
 	if err != nil {
 		t.Error(err)
 	}
-	if cin == nil {
-		t.Error("cin nil")
+	if client == nil {
+		t.Error("client nil")
 	}
-	if cout == nil {
-		t.Error("cout nil")
-	}
-	defer cin.Close()
-	defer cout.Close()
+	defer server.Close()
+	defer client.Close()
 
 	// server
 	go func() {
 		var req Req
-		err := sin.Recv(&req)
+		err := server.Recv(&req)
 		if err != nil {
 			t.Error(err)
 		}
 
-		err = sout.Send(Res{Id: 456, To: req.Id})
+		err = server.Send(Res{Id: 456, To: req.Id})
 	}()
 
 	// client
-	err = cout.Send(Req{Id: 123})
+	err = client.Send(Req{Id: 123})
 	if err != nil {
 		t.Error(err)
 	}
 
 	var res Res
-	err = cin.Recv(&res)
+	err = client.Recv(&res)
 	if err != nil {
 		t.Error(err)
 	}
@@ -77,21 +68,39 @@ func Test_Duplex(t *testing.T) {
 	}
 }
 
+func Test_Idempotent_Close(t *testing.T) {
+	fmt.Fprintf(os.Stderr, "creating provider...")
+	provider := binary.NewProvider(path.Join(os.TempDir(), "remora-test"))
+	fmt.Fprintf(os.Stderr, "done\ncreating server...")
+	server, err := provider.Server("test")
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Fprintf(os.Stderr, "done\nclosing once...")
+	err = server.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Fprintf(os.Stderr, "done\nclosing twice...")
+	err = server.Close()
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Fprintf(os.Stderr, "done\n")
+}
+
 func Test_Server_connection_deletes_existing_files(t *testing.T) {
 	ioutil.WriteFile(path.Join(os.TempDir(), "remora-test/test.in"), []byte{42}, 0666)
 	ioutil.WriteFile(path.Join(os.TempDir(), "remora-test/test.out"), []byte{42}, 0666)
 
 	provider := binary.NewProvider(path.Join(os.TempDir(), "remora-test"))
 
-	in, out, err := provider.Server("test", comms.Duplex)
+	server, err := provider.Server("test")
 	if err != nil {
 		t.Error(err)
 	}
-	if in == nil {
-		t.Error("in nil")
-	}
-	if out == nil {
-		t.Error("out nil")
+	if server == nil {
+		t.Error("server nil")
 	}
 }
 
@@ -102,7 +111,7 @@ func Benchmark_binary_comms(b *testing.B) {
 	// start the server
 	gate := make(chan struct{})
 	go func() {
-		in, out, err := provider.Server("echo", comms.Duplex)
+		server, err := provider.Server("echo")
 		if err != nil {
 			panic(err)
 		}
@@ -111,12 +120,12 @@ func Benchmark_binary_comms(b *testing.B) {
 
 		for {
 			var msg int
-			err := in.Recv(&msg)
+			err := server.Recv(&msg)
 			if err != nil {
 				panic(err)
 			}
 
-			err = out.Send(msg)
+			err = server.Send(msg)
 			if err != nil {
 				panic(err)
 			}
@@ -127,7 +136,7 @@ func Benchmark_binary_comms(b *testing.B) {
 	<-gate
 
 	// set up client
-	in, out, err := provider.Client("echo", comms.Duplex)
+	client, err := provider.Client("echo")
 	if err != nil {
 		panic(err)
 	}
@@ -135,13 +144,13 @@ func Benchmark_binary_comms(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		err = out.Send(i)
+		err = client.Send(i)
 		if err != nil {
 			panic(err)
 		}
 
 		var r int
-		err = in.Recv(&r)
+		err = client.Recv(&r)
 		if err != nil {
 			panic(err)
 		}

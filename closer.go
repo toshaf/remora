@@ -1,15 +1,21 @@
 package remora
 
+import (
+	"github.com/toshaf/remora/errors"
+)
+
 type Closer interface {
 	Close() error
 }
 
 type Closers []Closer
 
-func (c Closers) CloseAll() Errs {
-	errs := Errs{}
+func (c Closers) CloseAll() errors.Errors {
+	errs := errors.Errors{}
 	for _, cl := range c {
-		errs.Add(cl.Close())
+		if cl != nil {
+			errs.Add(cl.Close())
+		}
 	}
 
 	return errs

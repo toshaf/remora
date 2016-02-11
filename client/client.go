@@ -7,18 +7,6 @@ import (
 	"github.com/toshaf/remora/comms/binary"
 )
 
-// Exposes client capabilities to a Remora client app
-type Client interface {
-	// Given a logical name, creates a duplex connection to the server.
-	// The server must have created the relevant pipes also.
-	// If the error is not nil, both halves of the pipe will be.
-	// Either half of the pipe can be closed independently of the other, if it's
-	// not required by the client/server protocol.
-	Connect(pipe string) (comms.In, comms.Out, error)
-	// Closes all connections maintained by this instance.
-	Close() error
-}
-
 var pipes *string
 
 func init() {
@@ -29,7 +17,7 @@ func init() {
 
 // Creates a new Client instance using the directory specified by the server
 // process that started this process.
-func New() Client {
+func New() remora.Client {
 	return &client{
 		Provider: binary.NewProvider(*pipes),
 	}
@@ -40,14 +28,14 @@ type client struct {
 	closers  remora.Closers
 }
 
-func (c *client) Connect(pipe string) (comms.In, comms.Out, error) {
-	in, out, err := c.Provider.Client(pipe, comms.Duplex)
+func (c *client) Connect(name string) (comms.Pipe, error) {
+	pipe, err := c.Provider.Client(name)
 	if err != nil {
-		return in, out, err
+		return pipe, err
 	}
-	c.closers.Append(in, out)
+	c.closers.Append(pipe)
 
-	return in, out, err
+	return pipe, err
 }
 
 func (c *client) Close() error {
