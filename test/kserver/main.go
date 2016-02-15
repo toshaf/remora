@@ -19,8 +19,10 @@ func main() {
 	select {
 	case err := <-run.Result():
 		Check(err)
+		fmt.Fprintf(os.Stderr, "App exited\n")
 	case <-time.After(time.Second):
 		Check(run.Kill())
+		fmt.Fprintf(os.Stderr, "Killed app\n")
 	}
 
 	fmt.Println("Done")
