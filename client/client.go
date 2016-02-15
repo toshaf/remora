@@ -19,6 +19,7 @@ func init() {
 			args = append(args, a)
 		}
 	}
+	os.Args = args
 }
 
 // Creates a new Client instance using the directory specified by the server
