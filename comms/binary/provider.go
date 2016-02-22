@@ -4,7 +4,6 @@ import (
 	"github.com/toshaf/remora/comms"
 	"os"
 	"path"
-	"syscall"
 )
 
 type provider struct {
@@ -61,9 +60,4 @@ func (p *provider) Client(name string) (comms.Pipe, error) {
 	}
 
 	return NewClient(FNames{In: iname, Out: oname}), nil
-}
-
-func createFifo(fname string) error {
-	os.Remove(fname)
-	return syscall.Mkfifo(fname, 0666)
 }
